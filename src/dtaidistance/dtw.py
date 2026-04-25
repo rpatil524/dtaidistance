@@ -234,12 +234,20 @@ class DTWSettings:
             'inner_dist': inner_dist
         }
 
+    def use_psi(self):
+        if self.psi is None or self.psi == 0:
+            return False
+        return True
+
     def split_psi(self):
         psi_1b = psi_1e = psi_2b = psi_2e = 0
         if type(self.psi) is int:
             psi_1b = psi_1e = psi_2b = psi_2e = self.psi
         elif type(self.psi) in [tuple, list]:
-            psi_1b, psi_1e, psi_2b, psi_2e = self.psi
+            if len(self.psi) == 1:
+                psi_1b = psi_1e = psi_2b = psi_2e = self.psi[0]
+            else:
+                psi_1b, psi_1e, psi_2b, psi_2e = self.psi
         return psi_1b, psi_1e, psi_2b, psi_2e
 
     def to_h5_group(self, group):
@@ -1144,6 +1152,19 @@ def best_path(paths, row=None, col=None, use_max=False, penalty=0):
     p = []
     if paths[i, j] != -1:
         p.append((i - 1, j - 1))
+    else:
+        # Igore -1 at and of path
+        if paths[i - 1, j] == -1:
+            i -= 1
+            while paths[i, j] == - 1 and i > 0:
+                i -= 1
+        elif paths[i, j - 1] == -1:
+            j -= 1
+            while paths[i, j] == -1 and j > 0:
+                j -= 1
+        else:
+            i -= 1
+        p.append((i - 1, j - 1))
     while i > 0 and j > 0:
         c = argm([paths[i - 1, j - 1],
                   paths[i - 1, j] + penalty,
@@ -1154,8 +1175,10 @@ def best_path(paths, row=None, col=None, use_max=False, penalty=0):
             i = i - 1
         elif c == 2:
             j = j - 1
-        if paths[i, j] != -1:
-            p.append((i - 1, j - 1))
+        p.append((i - 1, j - 1))
+        if paths[i, j] == -1:
+            # Igore -1 at begin of path
+            break
     p.pop()
     p.reverse()
     return p

@@ -1380,7 +1380,7 @@ seq_t dtw_warping_paths_ndim(seq_t *wps,
         rvalue = -1;
     }
 
-    if (settings->max_dist > 0 && rvalue > settings->max_dist) {
+    if (p.max_dist > 0 && rvalue > p.max_dist) {
         // DTWPruned keeps the last value larger than max_dist. Correct for this.
         rvalue = INFINITY;
     }
@@ -3249,6 +3249,124 @@ idx_t dtw_wps_max(DTWWps* p, seq_t *wps, idx_t *r, idx_t *c, idx_t l1, idx_t l2)
 }
 
 
+void dtw_best_path_neghor(seq_t *wps, idx_t *rri, idx_t *rci, idx_t l1, idx_t l2,
+                          DTWSettings *settings) {
+    DTWWps p = dtw_wps_parts(l1, l2, settings);
+
+    idx_t i = 0;
+    idx_t rip = l1;
+    idx_t cip = l2;
+    idx_t min_ci;
+    idx_t wpsi_start, wpsi;
+    idx_t ri_widthp = p.width * (rip - 1);
+    idx_t ri_width = p.width * rip;
+
+    // D. ri3 <= ri < l1
+    min_ci = p.ri3 + 1 - p.window - p.ldiff;
+    wpsi_start = 2;
+    if (p.ri2 == p.ri3) {
+        wpsi_start = min_ci + 1;
+    } else {
+        min_ci = 1 + p.ri3 - p.ri2;
+    }
+    wpsi = wpsi_start + (l2 - min_ci) - 1;
+    while (rip > p.ri3 && cip > 0) {
+        if (wps[ri_width + wpsi] != -1) {
+            *rri = rip;
+            *rci = cip;
+            return;
+        }
+        // Go left
+        cip--;
+        wpsi--;
+    }
+
+    // C. ri2 <= ri < ri3
+    while (rip > p.ri2 && cip > 0) {
+        if (wps[ri_width + wpsi] != -1) {
+            *rri = rip;
+            *rci = cip;
+            return;
+        }
+        // Go left
+        cip--;
+        wpsi--;
+    }
+
+    // A-B. 0 <= ri < ri2
+    while (rip > 0 && cip > 0) {
+        if (wps[ri_width + wpsi] != -1) {
+            *rri = rip;
+            *rci = cip;
+            return;
+        }
+        // Go left
+        cip--;
+        wpsi--;
+    }
+}
+
+void dtw_best_path_negver(seq_t *wps, idx_t *rri, idx_t *rci, idx_t l1, idx_t l2,
+                          DTWSettings *settings) {
+    DTWWps p = dtw_wps_parts(l1, l2, settings);
+
+    idx_t i = 0;
+    idx_t rip = l1;
+    idx_t cip = l2;
+    idx_t min_ci;
+    idx_t wpsi_start, wpsi;
+    idx_t ri_widthp = p.width * (rip - 1);
+    idx_t ri_width = p.width * rip;
+
+    // D. ri3 <= ri < l1
+    min_ci = p.ri3 + 1 - p.window - p.ldiff;
+    wpsi_start = 2;
+    if (p.ri2 == p.ri3) {
+        wpsi_start = min_ci + 1;
+    } else {
+        min_ci = 1 + p.ri3 - p.ri2;
+    }
+    wpsi = wpsi_start + (l2 - min_ci) - 1;
+    while (rip > p.ri3 && cip > 0) {
+        if (wps[ri_width + wpsi] != -1) {
+            *rri = rip;
+            *rci = cip;
+            return;
+        }
+        // Go up
+        rip--;
+        ri_width = ri_widthp;
+        ri_widthp -= p.width;
+    }
+
+    // C. ri2 <= ri < ri3
+    while (rip > p.ri2 && cip > 0) {
+        if (wps[ri_width + wpsi] != -1) {
+            *rri = rip;
+            *rci = cip;
+            return;
+        }
+        // Go up
+        rip--;
+        wpsi++;
+        ri_width = ri_widthp;
+        ri_widthp -= p.width;
+    }
+
+    // A-B. 0 <= ri < ri2
+    while (rip > 0 && cip > 0) {
+        if (wps[ri_width + wpsi] != -1) {
+            *rri = rip;
+            *rci = cip;
+            return;
+        }
+        // Go up
+        rip--;
+        ri_width = ri_widthp;
+        ri_widthp -= p.width;
+    }
+}
+
 
 /*!
 Compute best path between two series.
@@ -3286,12 +3404,22 @@ idx_t dtw_best_path(seq_t *wps, idx_t *i1, idx_t *i2, idx_t l1, idx_t l2,
         min_ci = 1 + p.ri3 - p.ri2;
     }
     wpsi = wpsi_start + (l2 - min_ci) - 1;
-    while (rip > p.ri3 && cip > 0) {
-        if (wps[ri_width + wpsi] != -1) {
-            i1[i] = rip - 1;
-            i2[i] = cip - 1;
-            i++;
+
+    if (wps[ri_width + wpsi] == -1) {
+        // Last value is -1 (psi-relax) go to last nonnegative value
+        dtw_best_path_neghor(wps, &rip, &cip, l1, l2, settings);
+        if (rip == l1 && cip >= l2-1) {
+            dtw_best_path_negver(wps, &rip, &cip, l1, l2, settings);
         }
+        wpsi = dtw_wps_loc(&p, rip, cip, l1, l2) - ri_width;
+    }
+    
+    while (rip > p.ri3 && cip > 0) {
+        if (wps[ri_width + wpsi] == -1)
+            return i;
+        i1[i] = rip - 1;
+        i2[i] = cip - 1;
+        i++;
         if (wps[ri_widthp + wpsi - 1] <= wps[ri_width  + wpsi - 1] + p.penalty &&
             wps[ri_widthp + wpsi - 1] <= wps[ri_widthp + wpsi] + p.penalty) {
             // Go diagonal
@@ -3314,11 +3442,11 @@ idx_t dtw_best_path(seq_t *wps, idx_t *i1, idx_t *i2, idx_t l1, idx_t l2,
 
     // C. ri2 <= ri < ri3
     while (rip > p.ri2 && cip > 0) {
-        if (wps[ri_width + wpsi] != -1) {
-            i1[i] = rip - 1;
-            i2[i] = cip - 1;
-            i++;
-        }
+        if (wps[ri_width + wpsi] == -1)
+            return i;
+        i1[i] = rip - 1;
+        i2[i] = cip - 1;
+        i++;
         if (wps[ri_widthp + wpsi] <= wps[ri_width  + wpsi - 1] + p.penalty &&
             wps[ri_widthp + wpsi] <= wps[ri_widthp + wpsi + 1] + p.penalty) {
             // Go diagonal
@@ -3341,11 +3469,11 @@ idx_t dtw_best_path(seq_t *wps, idx_t *i1, idx_t *i2, idx_t l1, idx_t l2,
 
     // A-B. 0 <= ri < ri2
     while (rip > 0 && cip > 0) {
-        if (wps[ri_width + wpsi] != -1) {
-            i1[i] = rip - 1;
-            i2[i] = cip - 1;
-            i++;
-        }
+        if (wps[ri_width + wpsi] == -1)
+            return i;
+        i1[i] = rip - 1;
+        i2[i] = cip - 1;
+        i++;
         if (wps[ri_widthp + wpsi - 1] <= wps[ri_width  + wpsi - 1] + p.penalty &&
             wps[ri_widthp + wpsi - 1] <= wps[ri_widthp + wpsi] + p.penalty) {
             // Go diagonal
