@@ -448,12 +448,12 @@ void benchmark11b() {
     DTWSettings settings = dtw_settings_default();
     dtw_settings_set_psi(10, &settings);
 //    settings.window = 25;
-    
-    double dd = dtw_distance(s2, 40, s1, 40, &settings);
-    printf("dd=%f\n", dd);
-    
     idx_t l1 = 200;
     idx_t l2 = 200;
+    
+    double dd = dtw_distance(s2, l1, s1, l2, &settings);
+    printf("dd=%f\n", dd);
+    
     idx_t wps_length = dtw_settings_wps_length(l1, l2, &settings);
     printf("wps_length=%zu\n", wps_length);
     seq_t wps[wps_length];

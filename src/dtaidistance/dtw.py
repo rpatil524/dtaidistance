@@ -196,7 +196,7 @@ class DTWSettings:
     def set_max_dist(self, s1, s2):
         _, _, ival_fn = innerdistance.inner_dist_fns(self.inner_dist, use_ndim=self.use_ndim)
         if self.use_pruning and (self.max_dist == 0 or self.max_dist is None):
-            self.max_dist = ub_euclidean(s1, s2, inner_dist=self.inner_dist)
+            self.max_dist = ub_euclidean(s1, s2, inner_dist=self.inner_dist, use_ndim=self.use_ndim)
             self.adj_max_dist = ival_fn(self.max_dist)
 
     def kwargs(self):
@@ -221,7 +221,7 @@ class DTWSettings:
             else self.max_length_diff
         penalty = 0 if self.penalty is None else self.penalty
         psi = 0 if self.psi is None else self.psi
-        use_pruning = 0 if self.use_pruning is None else self.use_pruning
+        use_pruning = 0 if self.use_pruning is None else int(self.use_pruning)
         inner_dist = innerdistance.to_c(self.inner_dist)
         return {
             'window': window,
@@ -299,9 +299,9 @@ def lb_keogh(s1, s2, **kwargs):
     return result_fn(t)
 
 
-def ub_euclidean(s1, s2, inner_dist=innerdistance.default):
+def ub_euclidean(s1, s2, inner_dist=innerdistance.default, use_ndim=False):
     """ See :meth:`dtaidistance.ed.euclidean_distance`"""
-    return ed.distance(s1, s2, inner_dist=inner_dist)
+    return ed.distance(s1, s2, inner_dist=inner_dist, use_ndim=use_ndim)
 
 
 def distance(s1, s2, **kwargs) -> float:
