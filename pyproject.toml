@@ -36,8 +36,9 @@ tests = ["pytest", "pytest-benchmark"]
 viz = ["matplotlib>=3.0.0"]
 dev = [
 	"pytest", "pytest-benchmark", "pytest-env",
-	"matplotlib>=3.0.0", "numpy", "scipy",
-	"sphinx", "sphinx_rtd_theme"
+	"matplotlib>=3.0.0", "numpy", "scipy", "pandas",
+	"sphinx", "sphinx_rtd_theme",
+	"setuptools", "wheel", "Cython", "wurlitzer",
 ]
 numpy = ["numpy", "scipy", "pandas"]
 all = ["numpy", "scipy", "pandas"]
